@@ -1,9 +1,9 @@
-import { Application, Assets, Container, Sprite } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Ticker } from 'pixi.js';
 
 // (async () => {
 // Create a new application
 const app = new Application();
-
+let timer = 0;
 // Initialize the application
 await app.init({ background: '#1099bb',height:window.innerHeight});
 
@@ -35,59 +35,82 @@ container.pivot.y = container.height / 2;
 
 let a = 0
 
-const tubeContainer = new Container();
 
 
 
-app.stage.addChild(tubeContainer);
+
+
 
 
 // Create a 5x5 grid of bunnies in the container
 const tubeTexture = await Assets.load('assets/tube.png')
-const upperTube = new Sprite(tubeTexture);
-const lowerTube = new Sprite(tubeTexture);
-upperTube.pivot.set(upperTube.width /2, upperTube.height /2)
-lowerTube.pivot.set(lowerTube.width /2, lowerTube.height /2)
-lowerTube.rotation = Math.PI 
-// lowerTube.position.x=upperTube.position.x
-upperTube.position.y += 50
-lowerTube.position.y += 700
 
-// bunny.x = app.screen.width / 2; 
-// bunny.y = app.screen.height / 2;
-upperTube.scale.set(0.4, 0.4)
-// upperTube.position.y += -10
-lowerTube.scale.set(0.4, 0.4)
-// lowerTube.position.y += 1
-// lowerTube.rotation = Math.PI / 2
-
-tubeContainer.addChild(upperTube);
-tubeContainer.addChild(lowerTube)
-tubeContainer.position.x += app.canvas.width-200
-tubeContainer.position.y += 50
-
+// console.log(tubeContainer.position)
 document.addEventListener('keydown', function(event) {
-  if (event.code === 'Space') {
-    a = -10
+    if (event.code === 'Space') {
+        a = -10
     // Your code to execute when spacebar is pressed
   }
 });
-
+const s = 1
 // Listen for animate update
 app.ticker.add((dt) => {
 // Continuously rotate the container!
 // * use delta to create frame-independent transform *
 
-  // birdFall(dt)
-
+	updateBird(dt)
+  	// updateTube(dt)
+	
 
 });
-// })();
 
-function birdFall(dt) {
+app.ticker.add((dt) => {
+	timer += dt.elapsedMS;
+	console.log(`timer: ${timer}`)
+	if (timer >= 3000){
+		timer = 0;
+		const tube = createTube();
+
+		let ticker = app.ticker.add(updateTube, tube)
+	}
+});
+
+function updateTube(dt){
+	this.position.x -= s*dt.deltaTime
+	if (this.position.x+this.width<0 +100){
+		app.ticker.remove(updateTube, this)
+	}
+		
+	
+}
+
+function updateBird(dt){
     a += 0.3 * dt.deltaTime
     container.position.y += a;
     if (container.position.y > window.innerHeight){
         container.position.y =0
     } 
 }
+
+function createTube(){
+	const upperTube = new Sprite(tubeTexture);
+	const lowerTube = new Sprite(tubeTexture);
+	const tubeContainer = new Container();
+	app.stage.addChild(tubeContainer);
+	upperTube.pivot.set(upperTube.width /2, upperTube.height /2)
+	lowerTube.pivot.set(lowerTube.width /2, lowerTube.height /2)
+	lowerTube.rotation = Math.PI 
+	upperTube.position.y += 50
+	lowerTube.position.y += 700
+	upperTube.scale.set(0.4, 0.4)
+	lowerTube.scale.set(0.4, 0.4)
+	tubeContainer.addChild(upperTube);
+	tubeContainer.addChild(lowerTube)
+	tubeContainer.position.x += app.canvas.width+100
+	tubeContainer.position.y += 50
+	// ticker.add(updateTube, tubeContainer)
+
+	return tubeContainer
+}
+// })();
+
