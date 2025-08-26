@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Sprite, Graphics } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Graphics, Point, loadBasisOnWorker } from 'pixi.js';
 
 const LABELS = {
 	LOWER_TUBE: 0,
@@ -53,14 +53,14 @@ document.addEventListener('keydown', function(event) {
     // Your code to execute when spacebar is pressed
   }
 });
-const s = 0.2
+const s = 0.05
 // Listen for animate update
 app.ticker.add((dt) => {
 
 	updateBird(dt)
 	
 	timer += dt.elapsedMS;
-	if (timer >= 2000){
+	if (timer >= 13000){
 		timer = 0;
 		const tube = createTube();
 
@@ -73,8 +73,10 @@ function updateTube(dt){
 	this.position.x -= s*dt.elapsedMS
 	// updateDebugBounds(this.getChildByLabel(LABELS.LOWER_TUBE));
 	// updateDebugBounds(this.getChildByLabel(LABELS.UPPER_TUBE));
-	if (this.position.x+this.width<0 +100){
-		app.ticker.remove(updateTube, this)
+	if (this.position.x+this.width<0){
+		app.ticker.remove(updateTube, this);
+		app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.UPPER_TUBE));
+		app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.LOWER_TUBE));
 		this.destroy({Children: true})
 	}
 		
@@ -92,27 +94,44 @@ function updateBird(dt){
 }
 
 function createTube(){
-	const upperTube = new Sprite(tubeTexture);
-	const lowerTube = new Sprite(tubeTexture);
-	createDebugBounds(upperTube);
-	createDebugBounds(lowerTube);
+	const upperTubeSprite = new Sprite(tubeTexture);
+	const lowerTubeSprite = new Sprite(tubeTexture);
+
+
+	createDebugBounds(upperTubeSprite);
+	createDebugBounds(lowerTubeSprite);
+	
+	upperTubeSprite.label = LABELS.UPPER_TUBE;
+	lowerTubeSprite.label = LABELS.LOWER_TUBE;
+
+	const tubes = new Container();
+	app.stage.addChild(tubes);
+	
+	lowerTubeSprite.pivot.set(lowerTubeSprite.width, lowerTubeSprite.height);
+	lowerTubeSprite.rotation = Math.PI 
+	// lowerTubeSprite.anchor.set(1, 1) 
+	
+	// lowerTub
+	// lowerTubeSprite.position.x += lowerTubeSprite.width  /2 
+	// upperTubeSprite.position.y += 0
+	lowerTubeSprite.position.y += 700
+	upperTubeSprite.scale.set(0.4, 0.4)
+	lowerTubeSprite.scale.set(0.4, 0.4)
+	const lowerTube = new Container();
+	const upperTube = new Container();
+	lowerTube.addChild(lowerTubeSprite)
+	upperTube.addChild(upperTubeSprite)
+	tubes.addChild(upperTube, lowerTube);
+	// lowerTubeSprite.pivot.set(0,  0)
+	
+	
+	tubes.position.x += app.canvas.width+100
+	tubes.position.y += -60 + randInt(-60, 60)
 	app.ticker.add(checkCollision, upperTube);
-	upperTube.label = LABELS.UPPER_TUBE;
-	lowerTube.label = LABELS.LOWER_TUBE;
-	const tubeContainer = new Container();
-	app.stage.addChild(tubeContainer);
-	lowerTube.pivot.set(lowerTube.width, lowerTube.height)
-	lowerTube.rotation = Math.PI 
-	upperTube.position.y += 0
-	lowerTube.position.y += 700
-	upperTube.scale.set(0.4, 0.4)
-	lowerTube.scale.set(0.4, 0.4)
-	tubeContainer.addChild(upperTube, lowerTube);
-	tubeContainer.position.x += app.canvas.width+100
-	tubeContainer.position.y += -60 + randInt(-60, 60)
+	app.ticker.add(checkCollision, lowerTube);
 
 
-	return tubeContainer
+	return tubes
 }
 
 function randInt(min, max) {
@@ -121,12 +140,23 @@ function randInt(min, max) {
 
 function checkCollision(){
 	// const tubeSprite = this.getChildByLabel("upperTube") 
-	const tubePos = this.position;
-	const tubeWidth = tubePos.x+ this.width;
 
-	const birdPos = birdSprite.position;
-	const birdWidth = birdPos.x + birdSprite.width;
-	if ( birdPos.x < tubeWidth && birdPos.x > tubePos.x ) {
+	const tubeBounds = this.getBounds();
+	const tubeGlobalPos = this.toGlobal(new Point(0,0))
+	// const tubeWidth = tubePos.x+ this.width;
+	// console.log(tubeBounds);
+	// const birdBounds = bird.getBounds();
+	// console.log(tubeBounds)
+	// console.log(`tube  min x: ${tubeBounds.minX}`);
+	// console.log(`tube x: ${tubeGlobalPos.x}`);
+	// console.log(`bird y: ${bird.y}`);
+	
+	// console.log(birdBounds)
+	if ( bird.x < tubeBounds.minX + tubeBounds.width && 
+		bird.x + bird.width > tubeBounds.minX && 
+		bird.y < tubeBounds.minY + tubeBounds.height &&
+		bird.y + bird.height > tubeBounds.minY
+	) {
 		console.log("Collision!")
 	}
 }
