@@ -16,6 +16,15 @@
             display: block;
             width: 800px;
         }
+        .btn {
+          position: absolute;
+          /* position-anchor: 50% 50%; */
+          /* transform-origin: 50% 50%; */
+          top:50%;
+          left:50%;
+          padding: 20px;
+          transform: translate(-50%, -50%);
+        }
     </style>
     <script type="importmap">
       {
@@ -26,6 +35,8 @@
     </script>
 </head>
 <body>
+    <button id="new-game" class="btn" style="visibility: hidden;">New Game</button>
+    <button id="start-game" class="btn">Start Game</button>
     <script type="module" src="./src/main.js"></script>
 </body>
 </html>

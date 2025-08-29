@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Sprite, Graphics } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Graphics, BitmapText, UPDATE_PRIORITY } from 'pixi.js';
 
 const LABELS = {
 	LOWER_TUBE: 0,
@@ -12,22 +12,34 @@ await app.init({background: '#1099bb', height:window.innerHeight});
 
 const tubeTexture = await Assets.load('assets/tube.png');
 const birdTexture = await Assets.load('assets/bird.png');
-const bird = createBird();
 const speed = 0.1
+const newGameButton = document.getElementById("new-game");
+const startGameButton = document.getElementById("start-game");
+const scoreBoard = createScoreBoard();
+const bird = createBird();
 
 let acceleration = 0
 let timer = 0;
+let score = 0;
+let gameIsRunning = false;
+
 
 document.body.appendChild(app.canvas);
+app.ticker.stop()
 
 
 function updateTube(dt){
-	this.position.x -= speed*dt.elapsedMS
-	if (this.position.x+this.width<0){
-		app.ticker.remove(updateTube, this);
-		app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.UPPER_TUBE));
-		app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.LOWER_TUBE));
-		this.destroy({Children: true})
+	try{
+		this.position.x -= speed*dt.elapsedMS
+		if (this.position.x+this.width<0){
+			app.ticker.remove(updateTube, this);
+			// app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.UPPER_TUBE));
+			// app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.LOWER_TUBE));
+			this.destroy({Children: true})
+		}
+	}
+	catch(e){
+		console.log(e)
 	}
 }
 
@@ -35,7 +47,7 @@ function updateBird(dt){
     acceleration += 0.3 * dt.deltaTime
     bird.position.y += acceleration;
     if (bird.position.y > window.innerHeight){
-        bird.position.y =0
+        bird.position.y=0
     } 
 }
 
@@ -49,14 +61,18 @@ function createTube(label){
 	tube.addChild(tubeSprite);
 	app.ticker.add(checkCollision, tube);
 
+	tube.destroy = ()=>{
+		app.ticker.remove(checkCollision, tube)
+		tube.destroy({Children: true})
+	}
+
 	return tube;
 }
 
 
 function createGroupTubes(){
-
 	const tubes = new Container();
-	app.stage.addChild(tubes);
+	app.stage.addChildAt(tubes, 0);
 	const lowerTube = createTube(LABELS.LOWER_TUBE);
 	const upperTube = createTube(LABELS.UPPER_TUBE);
 	const lowerTubeSprite = lowerTube.getChildByLabel(LABELS.LOWER_TUBE);
@@ -69,8 +85,6 @@ function createGroupTubes(){
 	
 	tubes.position.x += app.canvas.width+100
 	tubes.position.y += -60 + randInt(-70, 70)
-	app.ticker.add(checkCollision, upperTube);
-	app.ticker.add(checkCollision, lowerTube);
 
 
 	return tubes
@@ -103,7 +117,7 @@ function checkCollision(){
 		bird.y < tubeBounds.minY + tubeBounds.height &&
 		bird.y + bird.height > tubeBounds.minY
 	) {
-		console.log("Collision!")
+		gameOver()
 	}
 }
 
@@ -113,10 +127,44 @@ function createDebugBounds(obj){
 	const graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
 	graphicsBox.label = LABELS.DEBUG_BOUNDS;
 	graphicsBox.scale.set(bounds.width/100, bounds.height/100);
-	graphicsBox.scale.set(bounds.width/100, bounds.height/100);
 	obj.addChild(graphicsBox);
 }
 
+function createScoreBoard(){
+	const text = new BitmapText({
+		text: 0,
+		style: {
+			fontFamily: 'impact',
+			fontSize: 60,
+			fill: '#ffffffff',
+		},
+	});
+	text.pivot.set(text.width/2, text.height/2);
+	text.position.set(app.canvas.width/2, 50);
+	app.stage.addChildAt(text, app.stage.children.length);
+	return text;
+}
+function updateScoreBoard(){
+	scoreBoard.text = 10000 + new Number(scoreBoard.text);
+	scoreBoard.pivot.x = scoreBoard.width/2;
+}
+
+// function startNewGame(){
+// 	app.ticker.start()
+// 	app.stage.children.forEach(node => node.destroy({Children: true}))
+// 	scoreBoard = createScoreBoard();
+// 	bird = createBird();
+// 	gameIsRunning = true;
+// 	timer = 0;
+// 	score = 0;
+// 	acceleration = 0;
+// }
+
+function gameOver(){
+	gameIsRunning = false;
+	newGameButton.style.visibility = "visible";
+	app.ticker.stop();
+}
 
 document.addEventListener('keydown', function(event) {
     if (event.code === 'Space') {
@@ -124,17 +172,32 @@ document.addEventListener('keydown', function(event) {
   }
 });
 
-app.ticker.add((dt) => {
-
-	updateBird(dt)
-	
-	timer += dt.elapsedMS;
-	if (timer >= 5000){
-		timer = 0;
-		const tube = createGroupTubes();
-
-		app.ticker.add(updateTube, tube)
-	}
-});
+newGameButton.addEventListener('click', () => {
+	// startNewGame()
+	// newGameButton.style.visibility = "hidden"
+	window.location.reload();
+})
+startGameButton.addEventListener('click', () => {
+	app.ticker.start();
+	// gameIsRunning = true;
+	startGameButton.style.visibility = "hidden";
+})
+app.ticker.add(
+	(dt) => {
+		// if (gameIsRunning){
+			updateBird(dt)
+			timer += dt.elapsedMS;
+			if (timer >= 5000){
+				timer = 0;
+				updateScoreBoard();
+				const tube = createGroupTubes();
+				// console.log(app.stage.children);
+				app.ticker.add(updateTube, tube)	
+			}
+		// }
+	}, 
+	undefined,
+	UPDATE_PRIORITY.HIGH
+);
 
 
