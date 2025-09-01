@@ -1,4 +1,4 @@
-import { Application, Assets, Container, Sprite, Graphics, BitmapText, UPDATE_PRIORITY } from 'pixi.js';
+import { Application, Assets, Container, Sprite, Graphics, Text, UPDATE_PRIORITY } from 'pixi.js';
 
 const LABELS = {
 	LOWER_TUBE: 0,
@@ -27,20 +27,29 @@ let gameIsRunning = false;
 document.body.appendChild(app.canvas);
 app.ticker.stop()
 
+function createGameObject(texture, lable, scaleX, scaleY, shape){
+	const sprite = new Sprite(texture);
+	const container =  new Container();
+
+	createDebugBounds(sprite, shape);
+	sprite.label = lable;
+	sprite.scale.set(scaleX, scaleY);
+	container.addChild(sprite);
+
+	return container;
+}
 
 function updateTube(dt){
-	try{
-		this.position.x -= speed*dt.elapsedMS
-		if (this.position.x+this.width<0){
-			app.ticker.remove(updateTube, this);
-			// app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.UPPER_TUBE));
-			// app.ticker.remove(checkCollision, this.getChildByLabel(LABELS.LOWER_TUBE));
-			this.destroy({Children: true})
-		}
+	// try{
+	this.position.x -= speed*dt.elapsedMS
+	if (this.position.x+this.width<0){
+		app.ticker.remove(updateTube, this);
+		this.destroy({Children: true})
 	}
-	catch(e){
-		console.log(e)
-	}
+	// }
+	// catch(e){
+	// 	console.log(e)
+	// }
 }
 
 function updateBird(dt){
@@ -52,18 +61,12 @@ function updateBird(dt){
 }
 
 function createTube(label){
-	const tubeSprite = new Sprite(tubeTexture);
-	const tube =  new Container();
-
-	createDebugBounds(tubeSprite);
-	tubeSprite.label = label;
-	tubeSprite.scale.set(0.5, 0.5);
-	tube.addChild(tubeSprite);
+	const tube = createGameObject(tubeTexture, label, 0.5, 0.5, "rect")
 	app.ticker.add(checkCollision, tube);
 
-	tube.destroy = ()=>{
+	tube.destroy = args => {
 		app.ticker.remove(checkCollision, tube)
-		tube.destroy({Children: true})
+		tube.destroy(args)
 	}
 
 	return tube;
@@ -91,17 +94,11 @@ function createGroupTubes(){
 }
 
 function createBird(){
-	const bird = new Container();
-	const birdSprite = new Sprite(birdTexture);
-
-	app.stage.addChild(bird);
-	birdSprite.label = LABELS.BIRD_SPRITE;
-	bird.addChild(birdSprite);
-	birdSprite.scale.set(0.27, 0.27)
-
+	const bird = createGameObject(birdTexture, LABELS.BIRD_SPRITE, 0.27, 0.27, "circle");
 	bird.x = app.screen.width / 2 - 200;
 	bird.y = 0;
-	createDebugBounds(bird)
+	app.stage.addChild(bird);
+	// createDebugBounds(bird, 'circle')
 
 	return bird
 }
@@ -122,20 +119,35 @@ function checkCollision(){
 }
 
 
-function createDebugBounds(obj){
+function createDebugBounds(obj, shape){
+	let graphicsBox;
   	let bounds = obj.getBounds().rectangle;
-	const graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
+	console.log(bounds)
+	console.log(obj.width)
+	if (shape === "rect"){
+		graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
+		
+	}
+	else if (shape === "circle"){
+		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 50).stroke({ color: 0x00FF00, pixelLine: true });
+
+
+	}
+	else {
+		throw `${shape} - This shape does not exist`
+	}
+	let pivotPoint = new Graphics().rect(0, 0, 10, 10).stroke({ width: 10, color: 0x0000FF, pixelLine: true });
 	graphicsBox.label = LABELS.DEBUG_BOUNDS;
 	graphicsBox.scale.set(bounds.width/100, bounds.height/100);
-	obj.addChild(graphicsBox);
+	obj.addChild(graphicsBox, pivotPoint);
 }
 
 function createScoreBoard(){
-	const text = new BitmapText({
+	const text = new Text({
 		text: 0,
 		style: {
-			fontFamily: 'impact',
-			fontSize: 60,
+			fontFamily: 'Times New Roman',
+			fontSize: 72,
 			fill: '#ffffffff',
 		},
 	});
@@ -145,20 +157,11 @@ function createScoreBoard(){
 	return text;
 }
 function updateScoreBoard(){
-	scoreBoard.text = 10000 + new Number(scoreBoard.text);
+	scoreBoard.text = (1 + Number(scoreBoard.text)).toString();
 	scoreBoard.pivot.x = scoreBoard.width/2;
+	console.log(scoreBoard.text);
 }
 
-// function startNewGame(){
-// 	app.ticker.start()
-// 	app.stage.children.forEach(node => node.destroy({Children: true}))
-// 	scoreBoard = createScoreBoard();
-// 	bird = createBird();
-// 	gameIsRunning = true;
-// 	timer = 0;
-// 	score = 0;
-// 	acceleration = 0;
-// }
 
 function gameOver(){
 	gameIsRunning = false;
