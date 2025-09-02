@@ -12,11 +12,12 @@ await app.init({background: '#1099bb', height:window.innerHeight});
 
 const tubeTexture = await Assets.load('assets/tube.png');
 const birdTexture = await Assets.load('assets/bird.png');
-const speed = 0.1
+const speed = 0.1;
 const newGameButton = document.getElementById("new-game");
 const startGameButton = document.getElementById("start-game");
 const scoreBoard = createScoreBoard();
 const bird = createBird();
+const tubePairs = [];
 
 let acceleration = 0
 let timer = 0;
@@ -62,10 +63,10 @@ function updateBird(dt){
 
 function createTube(label){
 	const tube = createGameObject(tubeTexture, label, 0.5, 0.5, "rect")
-	app.ticker.add(checkCollision, tube);
+	// app.ticker.add(checkCollision, tube);
 
 	tube.destroy = args => {
-		app.ticker.remove(checkCollision, tube)
+		// app.ticker.remove(checkCollision(), tube)
 		tube.destroy(args)
 	}
 
@@ -73,9 +74,9 @@ function createTube(label){
 }
 
 
-function createGroupTubes(){
-	const tubes = new Container();
-	app.stage.addChildAt(tubes, 0);
+function createTubePair(){
+	const tubePair = new Container();
+	app.stage.addChildAt(tubePair, 0);
 	const lowerTube = createTube(LABELS.LOWER_TUBE);
 	const upperTube = createTube(LABELS.UPPER_TUBE);
 	const lowerTubeSprite = lowerTube.getChildByLabel(LABELS.LOWER_TUBE);
@@ -83,14 +84,16 @@ function createGroupTubes(){
 	lowerTube.position.y += 1050
 	lowerTube.position.x += lowerTube.width
 	upperTube.position.y -= 150
-	tubes.addChild(upperTube, lowerTube);
+	upperTube.label = LABELS.UPPER_TUBE;
+	lowerTube.label = LABELS.LOWER_TUBE;
+	tubePair.addChild(upperTube, lowerTube);
 	
-	
-	tubes.position.x += app.canvas.width+100
-	tubes.position.y += -60 + randInt(-70, 70)
 
+	tubePair.position.x += app.canvas.width+100
+	tubePair.position.y += -60 + randInt(-70, 70)
+	tubePairs.push(tubePair);
 
-	return tubes
+	return tubePair
 }
 
 function createBird(){
@@ -98,7 +101,6 @@ function createBird(){
 	bird.x = app.screen.width / 2 - 200;
 	bird.y = 0;
 	app.stage.addChild(bird);
-	// createDebugBounds(bird, 'circle')
 
 	return bird
 }
@@ -107,31 +109,52 @@ function randInt(min, max) {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function checkCollision(){
-	const tubeBounds = this.getBounds();
-	if ( bird.x < tubeBounds.minX + tubeBounds.width && 
-		bird.x + bird.width > tubeBounds.minX && 
-		bird.y < tubeBounds.minY + tubeBounds.height &&
-		bird.y + bird.height > tubeBounds.minY
-	) {
-		gameOver()
+function startCollisionCheck(){
+	// if (!tubePairs.length){
+	
+	let tubePair;
+	let upperTube;
+	let lowerTube;
+	function checkCollision(td){
+		// console.log(this.position)
+		const tubeBounds = this.getBounds();
+		if ( bird.x < tubeBounds.minX + tubeBounds.width && 
+			bird.x + bird.width > tubeBounds.minX && 
+			bird.y < tubeBounds.minY + tubeBounds.height &&
+			bird.y + bird.height > tubeBounds.minY
+		) {
+			gameOver()
+		}
+	}
+	function updateCurrentTubePair(){
+		tubePair = tubePairs.shift();
+		upperTube = tubePair.getChildByLabel(LABELS.UPPER_TUBE);
+		lowerTube = tubePair.getChildByLabel(LABELS.LOWER_TUBE);
+		app.ticker.add(checkCollision, upperTube, UPDATE_PRIORITY.LOW);
+		app.ticker.add(checkCollision, lowerTube, UPDATE_PRIORITY.LOW);
+	}
+
+	return () => {
+		if (tubePair && tubePair.position.x + tubePair.width < bird.position.x){
+			app.ticker.remove(checkCollision, upperTube);
+			app.ticker.remove(checkCollision, lowerTube);
+			updateCurrentTubePair();
+		} else if (tubePairs.length !== 0){
+			updateCurrentTubePair()
+		}
 	}
 }
-
 
 function createDebugBounds(obj, shape){
 	let graphicsBox;
   	let bounds = obj.getBounds().rectangle;
-	console.log(bounds)
-	console.log(obj.width)
+
 	if (shape === "rect"){
 		graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
 		
 	}
 	else if (shape === "circle"){
 		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 50).stroke({ color: 0x00FF00, pixelLine: true });
-
-
 	}
 	else {
 		throw `${shape} - This shape does not exist`
@@ -169,6 +192,12 @@ function gameOver(){
 	app.ticker.stop();
 }
 
+// function updateCurrentTubePair(){
+// 	const tubePair = tubePairs[0];
+// 	if (tubePair.position.x < bird.position.x){
+// 		tubePairs.shift();
+// 	}
+// }
 document.addEventListener('keydown', function(event) {
     if (event.code === 'Space') {
         acceleration = -10
@@ -185,18 +214,19 @@ startGameButton.addEventListener('click', () => {
 	// gameIsRunning = true;
 	startGameButton.style.visibility = "hidden";
 })
+app.ticker.add(startCollisionCheck(), undefined, UPDATE_PRIORITY.LOW);
 app.ticker.add(
 	(dt) => {
 		// if (gameIsRunning){
-			updateBird(dt)
-			timer += dt.elapsedMS;
-			if (timer >= 5000){
-				timer = 0;
-				updateScoreBoard();
-				const tube = createGroupTubes();
-				// console.log(app.stage.children);
-				app.ticker.add(updateTube, tube)	
-			}
+		updateBird(dt)
+		timer += dt.elapsedMS;
+		if (timer >= 5000){
+			timer = 0;
+			updateScoreBoard();
+			const tubePair = createTubePair();
+			// console.log(app.stage.children);
+			app.ticker.add(updateTube, tubePair)	
+		}
 		// }
 	}, 
 	undefined,
