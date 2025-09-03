@@ -6,6 +6,10 @@ const LABELS = {
 	DEBUG_BOUNDS: 2,
 	BIRD_SPRITE: 3
 }
+let score = 0;
+let gameIsRunning = false;
+let acceleration = 0
+let timer = 5000;
 
 const app = new Application();
 await app.init({background: '#1099bb', height:window.innerHeight});
@@ -18,11 +22,8 @@ const startGameButton = document.getElementById("start-game");
 const scoreBoard = createScoreBoard();
 const bird = createBird();
 const tubePairs = [];
+const delay = timer;
 
-let acceleration = 0
-let timer = 0;
-let score = 0;
-let gameIsRunning = false;
 
 
 document.body.appendChild(app.canvas);
@@ -108,7 +109,69 @@ function createBird(){
 function randInt(min, max) {
 	return Math.floor(Math.random() * (max - min + 1)) + min;
 }
+function birdCollidesWithTubeSide(axis, birdBounds, tubeBounds){
+	axis = axis.toUpperCase();
+	const minPosName = "min"+axis;
+	const maxPosName = "max"+axis;
+	const birdCenterPos = (birdBounds[minPosName] + birdBounds[maxPosName]) / 2;
+	const tubeMinPos = tubeBounds[minPosName];
+	const tubeMaxPos = tubeBounds[maxPosName];
+	const birdIsBetweenMinAndMax = birdCenterPos < tubeMaxPos && birdCenterPos > tubeMinPos;
+	if (birdIsBetweenMinAndMax){
+		const opositeAxis = axis === "X" ? "Y": "X";
+		const minOpositePosName = "min"+opositeAxis;
+		const maxOpositePosName = "max"+opositeAxis;
+		const birdOpositeCenterPos = (birdBounds[minOpositePosName] + birdBounds[maxOpositePosName]) / 2;
+		const tubeOpositeMinPos = tubeBounds[minOpositePosName];
+		const tubeOpositeMaxPos = tubeBounds[maxOpositePosName];
+		const minSideDistance = Math.abs(tubeOpositeMinPos - birdOpositeCenterPos);
+		const maxSideDistance = Math.abs(tubeOpositeMaxPos - birdOpositeCenterPos); 
+		// console.log(minSideDistance, maxSideDistance)
+		const closerSideDistance = Math.min(minSideDistance, maxSideDistance);
+		const birdRadius = Math.abs(birdBounds[minOpositePosName] - birdOpositeCenterPos);
 
+		return closerSideDistance < birdRadius;
+	}
+	return false;
+}
+class Point{
+	constructor(x, y){
+		this.x = x;
+		this.y = y;
+	}
+	get magnitude(){
+		return (this.x**2 + this.y**2)**0.5
+	}
+}
+function birdCollidesWithTubeCorner(birdBounds, tubeBounds){
+	const birdCenterX = (birdBounds.minX + birdBounds.maxX)/2;
+	const birdCenterY = (birdBounds.minY + birdBounds.maxY)/2;
+	const birdRadius = Math.abs(birdBounds.maxX - birdCenterX);
+
+
+	const leftLowerCorner = new Point(
+		tubeBounds.minX - birdCenterX, 
+		tubeBounds.maxY - birdCenterY
+	);
+	const rightLowerCorner = new Point(
+		tubeBounds.maxX - birdCenterX, 
+		tubeBounds.maxY - birdCenterY,
+	);
+	const leftUpperCorner = new Point(
+		tubeBounds.minX - birdCenterX, 
+		tubeBounds.minY - birdCenterY
+	);
+	const rightUpperCorner = new Point(
+		tubeBounds.maxX - birdCenterX, 
+		tubeBounds.minY - birdCenterY,
+	);
+	return ( 
+		rightLowerCorner.magnitude < birdRadius || 
+		leftLowerCorner.magnitude < birdRadius ||
+		rightUpperCorner.magnitude < birdRadius ||
+		leftUpperCorner.magnitude < birdRadius
+	);
+}
 function startCollisionCheck(){
 	// if (!tubePairs.length){
 	
@@ -116,12 +179,16 @@ function startCollisionCheck(){
 	let upperTube;
 	let lowerTube;
 	function checkCollision(td){
-		// console.log(this.position)
 		const tubeBounds = this.getBounds();
-		if ( bird.x < tubeBounds.minX + tubeBounds.width && 
-			bird.x + bird.width > tubeBounds.minX && 
-			bird.y < tubeBounds.minY + tubeBounds.height &&
-			bird.y + bird.height > tubeBounds.minY
+		const birdBounds = bird
+			.getChildByLabel(LABELS.BIRD_SPRITE)
+			.getChildByLabel(LABELS.DEBUG_BOUNDS)
+			.getBounds();
+		if ( 
+			birdCollidesWithTubeSide("X", birdBounds, tubeBounds) ||
+			birdCollidesWithTubeSide("Y", birdBounds, tubeBounds) ||
+			birdCollidesWithTubeCorner(birdBounds, tubeBounds) || 
+			birdBounds.maxY > window.innerHeight - 50
 		) {
 			gameOver()
 		}
@@ -154,17 +221,17 @@ function createDebugBounds(obj, shape){
 		
 	}
 	else if (shape === "circle"){
-		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 50).stroke({ color: 0x00FF00, pixelLine: true });
+		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 35).stroke({ color: 0x00FF00, pixelLine: true });
 	}
 	else {
 		throw `${shape} - This shape does not exist`
 	}
-	let pivotPoint = new Graphics().rect(0, 0, 10, 10).stroke({ width: 10, color: 0x0000FF, pixelLine: true });
+	// let pivotPoint = new Graphics().rect(0, 0, 10, 10).stroke({ width: 10, color: 0x0000FF, pixelLine: true });
 	graphicsBox.label = LABELS.DEBUG_BOUNDS;
 	graphicsBox.scale.set(bounds.width/100, bounds.height/100);
-	obj.addChild(graphicsBox, pivotPoint);
+	obj.addChild(graphicsBox);
 }
-
+// TODO update score when the bird passes through tubes
 function createScoreBoard(){
 	const text = new Text({
 		text: 0,
@@ -192,12 +259,6 @@ function gameOver(){
 	app.ticker.stop();
 }
 
-// function updateCurrentTubePair(){
-// 	const tubePair = tubePairs[0];
-// 	if (tubePair.position.x < bird.position.x){
-// 		tubePairs.shift();
-// 	}
-// }
 document.addEventListener('keydown', function(event) {
     if (event.code === 'Space') {
         acceleration = -10
@@ -220,8 +281,8 @@ app.ticker.add(
 		// if (gameIsRunning){
 		updateBird(dt)
 		timer += dt.elapsedMS;
-		if (timer >= 5000){
-			timer = 0;
+		if (timer >= delay){
+			timer = 0; 
 			updateScoreBoard();
 			const tubePair = createTubePair();
 			// console.log(app.stage.children);
