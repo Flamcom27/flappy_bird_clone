@@ -6,8 +6,6 @@ const LABELS = {
 	DEBUG_BOUNDS: 2,
 	BIRD_SPRITE: 3
 }
-let score = 0;
-let gameIsRunning = false;
 let acceleration = 0
 let timer = 5000;
 
@@ -16,7 +14,7 @@ await app.init({background: '#1099bb', height:window.innerHeight});
 
 const tubeTexture = await Assets.load('assets/tube.png');
 const birdTexture = await Assets.load('assets/bird.png');
-const speed = 0.1;
+const speed = 100;
 const newGameButton = document.getElementById("new-game");
 const startGameButton = document.getElementById("start-game");
 const scoreBoard = createScoreBoard();
@@ -33,7 +31,7 @@ function createGameObject(texture, lable, scaleX, scaleY, shape){
 	const sprite = new Sprite(texture);
 	const container =  new Container();
 
-	createDebugBounds(sprite, shape);
+	createCollider(sprite, shape);
 	sprite.label = lable;
 	sprite.scale.set(scaleX, scaleY);
 	container.addChild(sprite);
@@ -43,10 +41,11 @@ function createGameObject(texture, lable, scaleX, scaleY, shape){
 
 function updateTube(dt){
 	// try{
-	this.position.x -= speed*dt.elapsedMS
+	this.position.x -= speed*(dt.elapsedMS/1000)
 	if (this.position.x+this.width<0){
 		app.ticker.remove(updateTube, this);
-		this.destroy({Children: true})
+		this.destroy({Children: true});
+		tubePairs.shift();
 	}
 	// }
 	// catch(e){
@@ -55,7 +54,7 @@ function updateTube(dt){
 }
 
 function updateBird(dt){
-    acceleration += 0.3 * dt.deltaTime
+    acceleration += 15 * (dt.elapsedMS/1000)
     bird.position.y += acceleration;
     if (bird.position.y > window.innerHeight){
         bird.position.y=0
@@ -178,47 +177,62 @@ function startCollisionCheck(){
 	let tubePair;
 	let upperTube;
 	let lowerTube;
+	let birdBounds;
+	let checkedTubePair;
 	function checkCollision(td){
 		const tubeBounds = this.getBounds();
-		const birdBounds = bird
-			.getChildByLabel(LABELS.BIRD_SPRITE)
-			.getChildByLabel(LABELS.DEBUG_BOUNDS)
-			.getBounds();
-		if ( 
-			birdCollidesWithTubeSide("X", birdBounds, tubeBounds) ||
+		if ( birdCollidesWithTubeSide("X", birdBounds, tubeBounds) ||
 			birdCollidesWithTubeSide("Y", birdBounds, tubeBounds) ||
 			birdCollidesWithTubeCorner(birdBounds, tubeBounds) || 
-			birdBounds.maxY > window.innerHeight - 50
+			birdBounds.maxY > window.innerHeight - 25
 		) {
 			gameOver()
 		}
 	}
-	function updateCurrentTubePair(){
-		tubePair = tubePairs.shift();
-		upperTube = tubePair.getChildByLabel(LABELS.UPPER_TUBE);
-		lowerTube = tubePair.getChildByLabel(LABELS.LOWER_TUBE);
-		app.ticker.add(checkCollision, upperTube, UPDATE_PRIORITY.LOW);
-		app.ticker.add(checkCollision, lowerTube, UPDATE_PRIORITY.LOW);
-	}
 
+	function updateCurrentTubePair(){
+		console.log(!tubePair)
+		if( !tubePair || tubePair !== tubePairs[0] ){
+			tubePair = tubePairs[0];
+			upperTube = tubePair.getChildByLabel(LABELS.UPPER_TUBE);
+			lowerTube = tubePair.getChildByLabel(LABELS.LOWER_TUBE);
+			app.ticker.add(checkCollision, upperTube, UPDATE_PRIORITY.LOW);
+			app.ticker.add(checkCollision, lowerTube, UPDATE_PRIORITY.LOW);
+		}
+	}
+	// app.ticker.add(checkBirdPassesTubes, undefined, UPDATE_PRIORITY.LOW);
 	return () => {
-		if (tubePair && tubePair.position.x + tubePair.width < bird.position.x){
-			app.ticker.remove(checkCollision, upperTube);
-			app.ticker.remove(checkCollision, lowerTube);
-			updateCurrentTubePair();
-		} else if (tubePairs.length !== 0){
-			updateCurrentTubePair()
+		// console.log(!!tubePair && tubePair.getBounds().maxX)
+		// console.log(!!tubePair&& tubePair.getBounds().maxX < bird.position.x)
+		// console.log(tubePairs)
+		updateCurrentTubePair();
+		birdBounds = bird
+			.getChildByLabel(LABELS.BIRD_SPRITE)
+			.getChildByLabel(LABELS.DEBUG_BOUNDS)
+			.getBounds();
+		if (!!tubePair){
+			const tubePairBounds =  tubePair.getBounds();
+			if (tubePairBounds.maxX  < birdBounds.minX){
+				tubePair = undefined;
+				app.ticker.remove(checkCollision, upperTube);
+				app.ticker.remove(checkCollision, lowerTube);
+			} else if (tubePairBounds.minX < birdBounds.maxX && tubePair !== checkedTubePair){
+				checkedTubePair = tubePair;
+				updateScoreBoard();
+			}
+		// } else if (tubePairs.length !== 0){
+		// 	updateCurrentTubePair()
+		// }
 		}
 	}
 }
 
-function createDebugBounds(obj, shape){
+function createCollider(obj, shape){
 	let graphicsBox;
   	let bounds = obj.getBounds().rectangle;
 
 	if (shape === "rect"){
 		graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
-		
 	}
 	else if (shape === "circle"){
 		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 35).stroke({ color: 0x00FF00, pixelLine: true });
@@ -249,12 +263,10 @@ function createScoreBoard(){
 function updateScoreBoard(){
 	scoreBoard.text = (1 + Number(scoreBoard.text)).toString();
 	scoreBoard.pivot.x = scoreBoard.width/2;
-	console.log(scoreBoard.text);
 }
 
 
 function gameOver(){
-	gameIsRunning = false;
 	newGameButton.style.visibility = "visible";
 	app.ticker.stop();
 }
@@ -283,7 +295,7 @@ app.ticker.add(
 		timer += dt.elapsedMS;
 		if (timer >= delay){
 			timer = 0; 
-			updateScoreBoard();
+			// updateScoreBoard();
 			const tubePair = createTubePair();
 			// console.log(app.stage.children);
 			app.ticker.add(updateTube, tubePair)	
