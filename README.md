@@ -1,0 +1,1 @@
+A simple clone of flappy bird game. It is written in js using pixi.js library.
