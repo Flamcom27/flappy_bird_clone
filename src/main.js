@@ -40,17 +40,12 @@ function createGameObject(texture, lable, scaleX, scaleY, shape){
 }
 
 function updateTube(dt){
-	// try{
 	this.position.x -= speed*(dt.elapsedMS/1000)
 	if (this.position.x+this.width<0){
 		app.ticker.remove(updateTube, this);
 		this.destroy({Children: true});
 		tubePairs.shift();
 	}
-	// }
-	// catch(e){
-	// 	console.log(e)
-	// }
 }
 
 function updateBird(dt){
@@ -63,13 +58,6 @@ function updateBird(dt){
 
 function createTube(label){
 	const tube = createGameObject(tubeTexture, label, 0.5, 0.5, "rect")
-	// app.ticker.add(checkCollision, tube);
-
-	tube.destroy = args => {
-		// app.ticker.remove(checkCollision(), tube)
-		tube.destroy(args)
-	}
-
 	return tube;
 }
 
@@ -125,7 +113,6 @@ function birdCollidesWithTubeSide(axis, birdBounds, tubeBounds){
 		const tubeOpositeMaxPos = tubeBounds[maxOpositePosName];
 		const minSideDistance = Math.abs(tubeOpositeMinPos - birdOpositeCenterPos);
 		const maxSideDistance = Math.abs(tubeOpositeMaxPos - birdOpositeCenterPos); 
-		// console.log(minSideDistance, maxSideDistance)
 		const closerSideDistance = Math.min(minSideDistance, maxSideDistance);
 		const birdRadius = Math.abs(birdBounds[minOpositePosName] - birdOpositeCenterPos);
 
@@ -172,7 +159,6 @@ function birdCollidesWithTubeCorner(birdBounds, tubeBounds){
 	);
 }
 function startCollisionCheck(){
-	// if (!tubePairs.length){
 	
 	let tubePair;
 	let upperTube;
@@ -200,11 +186,7 @@ function startCollisionCheck(){
 			app.ticker.add(checkCollision, lowerTube, UPDATE_PRIORITY.LOW);
 		}
 	}
-	// app.ticker.add(checkBirdPassesTubes, undefined, UPDATE_PRIORITY.LOW);
 	return () => {
-		// console.log(!!tubePair && tubePair.getBounds().maxX)
-		// console.log(!!tubePair&& tubePair.getBounds().maxX < bird.position.x)
-		// console.log(tubePairs)
 		updateCurrentTubePair();
 		birdBounds = bird
 			.getChildByLabel(LABELS.BIRD_SPRITE)
@@ -220,9 +202,6 @@ function startCollisionCheck(){
 				checkedTubePair = tubePair;
 				updateScoreBoard();
 			}
-		// } else if (tubePairs.length !== 0){
-		// 	updateCurrentTubePair()
-		// }
 		}
 	}
 }
@@ -232,20 +211,23 @@ function createCollider(obj, shape){
   	let bounds = obj.getBounds().rectangle;
 
 	if (shape === "rect"){
-		graphicsBox = new Graphics().rect(0, 0, 100, 100).stroke({ color: 0xff0000, pixelLine: true });
+		graphicsBox = new Graphics().rect(0, 0, 100, 100);
 	}
 	else if (shape === "circle"){
-		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 35).stroke({ color: 0x00FF00, pixelLine: true });
+		graphicsBox = new Graphics().circle(bounds.width/10,  bounds.height/10, 35);
 	}
 	else {
 		throw `${shape} - This shape does not exist`
 	}
-	// let pivotPoint = new Graphics().rect(0, 0, 10, 10).stroke({ width: 10, color: 0x0000FF, pixelLine: true });
+	graphicsBox.fill({
+			color: 0,
+			alpha: 0
+	});
 	graphicsBox.label = LABELS.DEBUG_BOUNDS;
 	graphicsBox.scale.set(bounds.width/100, bounds.height/100);
 	obj.addChild(graphicsBox);
 }
-// TODO update score when the bird passes through tubes
+
 function createScoreBoard(){
 	const text = new Text({
 		text: 0,
@@ -278,29 +260,22 @@ document.addEventListener('keydown', function(event) {
 });
 
 newGameButton.addEventListener('click', () => {
-	// startNewGame()
-	// newGameButton.style.visibility = "hidden"
 	window.location.reload();
 })
 startGameButton.addEventListener('click', () => {
 	app.ticker.start();
-	// gameIsRunning = true;
 	startGameButton.style.visibility = "hidden";
 })
 app.ticker.add(startCollisionCheck(), undefined, UPDATE_PRIORITY.LOW);
 app.ticker.add(
 	(dt) => {
-		// if (gameIsRunning){
 		updateBird(dt)
 		timer += dt.elapsedMS;
 		if (timer >= delay){
-			timer = 0; 
-			// updateScoreBoard();
+			timer = 0;
 			const tubePair = createTubePair();
-			// console.log(app.stage.children);
 			app.ticker.add(updateTube, tubePair)	
 		}
-		// }
 	}, 
 	undefined,
 	UPDATE_PRIORITY.HIGH
