@@ -1,5 +1,9 @@
 import { Application, Assets, Container, Sprite, Graphics, Text, UPDATE_PRIORITY } from 'pixi.js';
 
+
+
+(async () =>{
+
 const LABELS = {
 	LOWER_TUBE: 0,
 	UPPER_TUBE: 1,
@@ -8,7 +12,6 @@ const LABELS = {
 }
 let acceleration = 0
 let timer = 5000;
-
 const app = new Application();
 await app.init({background: '#1099bb', height:window.innerHeight});
 
@@ -281,4 +284,4 @@ app.ticker.add(
 	UPDATE_PRIORITY.HIGH
 );
 
-
+})();
